@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application xmlns="http://www.webkool.net/1.0/">
+	<client>
+		<script href='webkool.js'></script>
+		<script href='MySQL.js' />
+		<script>
+			var application = new Application();
+		</script>
+	</client>
+</application>

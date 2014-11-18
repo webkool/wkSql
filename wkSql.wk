@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application xmlns="http://www.webkool.net/1.0/">
+
+		<handler url="/db/columns" Constructor="SQLHandler">
+			<on id="construct"><![CDATA[
+				return {
+					statement: "SHOW COLUMNS FROM " + query.table,
+				};
+			]]></on>
+
+			<on id="complete"><![CDATA[
+				var columns = [];
+				var items = handler.result.valueOf();
+				for (var i = 0; i < items.length; i++) {
+					columns.push(items[i].Field);
+				}
+				handler.result = columns;
+			]]></on>
+		</handler>
+
+		<handler url="/db/tables" Constructor="SQLHandler">
+			<on id="construct"><![CDATA[
+				return {
+					statement: "SHOW TABLES",
+				};
+			]]></on>
+
+			<on id="complete"><![CDATA[
+				var tables = [];
+				var items = handler.result.valueOf();
+				for (var i = 0; i < items.length; i++) {
+					var item = items[i];
+					for (var name in item) {
+						tables.push({name: item[name]});
+						break;
+					}
+				}
+				handler.result = tables;
+			]]></on>
+		</handler>
+
+		<handler url="/tables">
+			<on id="request"><![CDATA[
+				this.tables = handler.request('/db/tables');
+			]]></on>
+
+			<on id="/db/tables"><![CDATA[
+				var tables = this.tables.valueOf();
+				for (var i = 0; i < tables.length; i++) {
+					tables[i].columns = handler.request('/db/columns', {i: i, table: tables[i].name});
+				}
+			]]></on>
+
+			<on id="/db/columns"><![CDATA[
+				var table = (this.tables.valueOf())[query.i];
+				table.columns = table.columns.valueOf();
+
+				var buffer = table.buffer = new StreamBuffers.WritableStreamBuffer();
+				buffer.write('\t<handler url="/db/' + table.name + '/add" Constructor="WkSQLAddHandler">\n');
+				buffer.write('\t\t<on id="construct"><![CDATA[\n');
+				buffer.write('\t\t\treturn {\n');
+				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
+				buffer.write('\t\t\t\tcolumns: [' + table.columns.join(',') + ']\n');
+				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t]'+']></on>\n');
+				buffer.write('\t</handler>\n\n');
+
+				buffer.write('\t<handler url="/db/' + table.name + '/modify" Constructor="WkSQLModifyHandler">\n');
+				buffer.write('\t\t<on id="construct"><![CDATA[\n');
+				buffer.write('\t\t\treturn {\n');
+				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
+				buffer.write('\t\t\t\tcolumns: [' + table.columns.join(',') + ']\n');
+				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t]'+']></on>\n');
+				buffer.write('\t</handler>\n\n');
+
+				buffer.write('\t<handler url="/db/' + table.name + '/delete" Constructor="WkSQLDeleteHandler">\n');
+				buffer.write('\t\t<on id="construct"><![CDATA[\n');
+				buffer.write('\t\t\treturn {\n');
+				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
+				buffer.write('\t\t\t\tcolumns: [' + table.columns.join(',') + ']\n');
+				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t]'+']></on>\n');
+				buffer.write('\t</handler>\n\n');
+			]]></on>
+
+			<on id="complete"><![CDATA[
+				handler.result = this.tables.valueOf();
+			]]></on>
+		</handler>
+
+		<handler url="/insert">
+			<on id="request"><![CDATA[
+			]]></on>
+		</handler>
+
+		<handler url="/main">
+			<on id="request"><![CDATA[
+
+				MySQL.connect(query.host, query.user, query.database, query.password);
+				this.tables = handler.request('/tables');
+			]]></on>
+
+			<on id="complete"><![CDATA[
+				var tables = this.tables.valueOf();
+				var buffer = new StreamBuffers.WritableStreamBuffer();
+				buffer.write('<?xml version="1.0" encoding="UTF-8"?>\n');
+				buffer.write('<application xmlns="http://www.webkool.net/1.0/">\n\n');
+				for (var i = 0; i < tables.length; i++) {
+					buffer.write(tables[i].buffer.getContentsAsString("utf8"));
+				}
+				buffer.write('</application>\n');
+				FileSystem.writeFileSync(query.output, buffer.getContentsAsString("utf8"));
+				process.exit();
+			]]></on>
+		</handler>
+
+		<script><![CDATA[
+			var StreamBuffers = require('stream-buffers');
+			var FileSystem = require('fs');
+			var argv = require('minimist')(process.argv);
+			var query = {}, error = 0, version = 0, help = 0;
+			var VERSION = VERSION || '0.0.0';
+
+			if (argv.database)
+				query.database = argv.database;
+			else if (argv.d)
+				query.database = argv.d;
+			else
+				error++;
+
+			if (argv.host)
+				query.host = argv.host;
+			else if (argv.h)
+				query.host = argv.h;
+			else
+				query.host = 'localhost';
+
+			if (argv.output)
+				query.output = argv.output;
+			else if (argv.o)
+				query.output = argv.o;
+			else
+				query.output = 'database.xs';
+
+			if (argv.password)
+				query.password = argv.password;
+			else if (argv.p)
+				query.password = argv.p;
+			else
+				error++;
+
+			if (argv.user)
+				query.user = argv.user;
+			else if (argv.u)
+				query.user = argv.u;
+			else
+				error++;
+
+			if (argv.help)
+				help++;
+
+			if (argv.version || argv.v)
+				version++;
+
+			if (version) {
+				console.log('v'+VERSION);
+			}
+			else if (error||help) {
+				console.log('Usage: wkSql [options] -d database -u user -p password');
+				console.log('Options:');
+				console.log('-h, --help                print wkSql\'s help');
+				console.log('-d, --database <value>    set db name');
+				console.log('-H, --hostname <value>    set db hostname, default to localhost');
+				console.log('-o, --output <value>      set output filename, default to database.xs');
+				console.log('-p, --password <value>    set db user password');
+				console.log('-u, --user <value>        set db user name');
+				console.log('-v, --version             print wkSql\'s version');
+			}
+			else {
+				application.request("/main", query);
+			}
+		]]></script>
+
+</application>

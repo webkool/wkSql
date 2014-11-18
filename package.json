@@ -1,0 +1,35 @@
+{
+  "name": "wkSql",
+  "description": "open-source tools to generate webkool handler to access sql database.",
+  "keywords": [
+    "webkool",
+    "sql",
+    "tool",
+    "database"
+  ],
+  "version": "0.1.0",
+  "preferGlobal": true,
+  "license": "Apache License 2.0",
+  "author": "haruni.net",
+  "contributors": [
+    {
+      "name": "Sebastien Burel",
+      "email": "sb@haruni.net"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/webkool/wkSql.git"
+  },
+  "bin": {
+    "wkSql": "./bin/wkSql"
+  },
+  "dependencies": {
+    "minimist": "*",
+    "mysql": "*",
+    "stream-buffers": "*"
+  },
+  "engines": {
+    "node": "*"
+  }
+}
