@@ -24,3 +24,6 @@ open-source tools to generate webkool handler to access sql database.
 **0.1.0**:
 -   initial commit
 
+**0.1.1**:
+-   Renaming Handler
+-   Fixing Columns names quoting

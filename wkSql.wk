@@ -56,32 +56,34 @@
 				table.columns = table.columns.valueOf();
 
 				var buffer = table.buffer = new StreamBuffers.WritableStreamBuffer();
-				buffer.write('\t<handler url="/db/' + table.name + '/add" Constructor="WkSQLAddHandler">\n');
+
+				buffer.write('\t<handler url="/db/' + table.name + '/delete" Constructor="SQLDeleteHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
 				buffer.write('\t\t\treturn {\n');
 				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: [' + table.columns.join(',') + ']\n');
+				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
 				buffer.write('\t\t\t};\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				buffer.write('\t<handler url="/db/' + table.name + '/modify" Constructor="WkSQLModifyHandler">\n');
+				buffer.write('\t<handler url="/db/' + table.name + '/insert" Constructor="SQLInsertHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
 				buffer.write('\t\t\treturn {\n');
 				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: [' + table.columns.join(',') + ']\n');
+				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
 				buffer.write('\t\t\t};\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				buffer.write('\t<handler url="/db/' + table.name + '/delete" Constructor="WkSQLDeleteHandler">\n');
+				buffer.write('\t<handler url="/db/' + table.name + '/update" Constructor="SQLUpdateHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
 				buffer.write('\t\t\treturn {\n');
 				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: [' + table.columns.join(',') + ']\n');
+				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
 				buffer.write('\t\t\t};\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
+
 			]]></on>
 
 			<on id="complete"><![CDATA[
