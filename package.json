@@ -7,7 +7,7 @@
     "tool",
     "database"
   ],
-  "version": "0.1.1",
+  "version": "0.1.2",
   "preferGlobal": true,
   "license": "Apache License 2.0",
   "author": "haruni.net",

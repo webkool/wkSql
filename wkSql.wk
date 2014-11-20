@@ -57,7 +57,25 @@
 
 				var buffer = table.buffer = new StreamBuffers.WritableStreamBuffer();
 
+				buffer.write('\t<handler url="/db/' + table.name + '/count" Constructor="SQLSelectCountHandler">\n');
+				buffer.write('\t\t<on id="construct"><![CDATA[\n');
+				buffer.write('\t\t\treturn {\n');
+				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
+				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
+				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t]'+']></on>\n');
+				buffer.write('\t</handler>\n\n');
+
 				buffer.write('\t<handler url="/db/' + table.name + '/delete" Constructor="SQLDeleteHandler">\n');
+				buffer.write('\t\t<on id="construct"><![CDATA[\n');
+				buffer.write('\t\t\treturn {\n');
+				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
+				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
+				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t]'+']></on>\n');
+				buffer.write('\t</handler>\n\n');
+
+				buffer.write('\t<handler url="/db/' + table.name + '/first" Constructor="SQLSelectFirstHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
 				buffer.write('\t\t\treturn {\n');
 				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
@@ -75,6 +93,15 @@
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
+				buffer.write('\t<handler url="/db/' + table.name + '/select" Constructor="SQLSelectHandler">\n');
+				buffer.write('\t\t<on id="construct"><![CDATA[\n');
+				buffer.write('\t\t\treturn {\n');
+				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
+				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
+				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t]'+']></on>\n');
+				buffer.write('\t</handler>\n\n');
+
 				buffer.write('\t<handler url="/db/' + table.name + '/update" Constructor="SQLUpdateHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
 				buffer.write('\t\t\treturn {\n');
@@ -84,7 +111,7 @@
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-			]]></on>
+				]]></on>
 
 			<on id="complete"><![CDATA[
 				handler.result = this.tables.valueOf();
@@ -98,7 +125,6 @@
 
 		<handler url="/main">
 			<on id="request"><![CDATA[
-
 				MySQL.connect(query.host, query.user, query.database, query.password);
 				this.tables = handler.request('/tables');
 			]]></on>
@@ -113,8 +139,8 @@
 				}
 				buffer.write('</application>\n');
 				FileSystem.writeFileSync(query.output, buffer.getContentsAsString("utf8"));
-				process.exit();
-			]]></on>
+				MySQL.close();
+				]]></on>
 		</handler>
 
 		<script><![CDATA[
