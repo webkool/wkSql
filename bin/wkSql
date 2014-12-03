@@ -1465,7 +1465,6 @@ application.addHandler("/insert", Handler.template({
 application.addHandler("/main", Handler.template({
 	Behavior: Behavior.template({
 		on_request: function(handler, model, query) {
-				console.log(query)
 				MySQL.connect(query.host, query.user, query.database, query.password);
 				this.tables = handler.request('/tables', {root: query.root});
 			
