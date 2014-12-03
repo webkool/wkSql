@@ -1,5 +1,5 @@
 #! /usr/bin/env node
-var VERSION = "0.1.2";
+var VERSION = "0.1.3";
 /* include /usr/local/lib/node_modules/webkool/bin/../lib/client/webkool.js */
 var module = module || {};
 var gHTTPServer = gHTTPServer || null;
@@ -301,16 +301,13 @@ Handler.prototype = Object.create(Object.prototype, {
 	},
 	redirect: { value:
 		function(url, query) {
-			if (query)
-				application.log(">>" + url + "?" + this.serializeQuery(query));
-			else
-				application.log(">>" + url);
+			application.debug("> " + url);
 			query = query || {};
 			var target = this.parent;
 			if (!this._completed)
-				application.log("WARNING! '" + this.url + "': redirect to '" + url + "' called before complete.");
+				application.warn("WARNING! '" + this.url + "': redirect to '" + url + "' called before complete.");
 			if (target)
-				application.log("WARNING! '" + this.url + "': redirect to '" + url + "' called.");
+				application.warn("WARNING! '" + this.url + "': redirect to '" + url + "' called.");
 
 			var constructor = application.findHandler(url, query);
 			var handler = new constructor(target, url, query);
@@ -333,16 +330,13 @@ Handler.prototype = Object.create(Object.prototype, {
 	},
 	request: { value:
 		function(url, query) {
-			if (query)
-				application.log("> " + url + "?" + this.serializeQuery(query));
-			else
-				application.log("> " + url);
+			application.debug("> " + url);
 			query = query || {};
 			var parent = this;
 			if (this._completed) {
 				parent = this.parent;
 				if (!parent) {
-					application.log("WARNING! '" + this.url + "': request '" + url + "' detached.");
+					application.warn("WARNING! '" + this.url + "': request '" + url + "' detached.");
 					return this.redirect(url, query);
 				}
 			}
@@ -520,7 +514,7 @@ Behavior.prototype = Object.create(Object.prototype, {
 	},
 	on_error: { value:
 		function(handler, error) {
-			application.log("Error in " + handler.url + ": " + error.toString());
+			application.error("Error in " + handler.url + ": " + error.toString());
 		}, writable: true,
 	},
 	on_load: { value:
@@ -532,7 +526,7 @@ Behavior.prototype = Object.create(Object.prototype, {
 			if (handler) {
 				if (handler.contentType == 'application/json' && handler.result)
 					return json(scope);
-				application.log("WARNING '" + handler.url + "' has no rendering.");
+				application.warn("WARNING '" + handler.url + "' has no rendering.");
 			}
 		}, writable: true,
 	},
@@ -573,10 +567,12 @@ var Application = function () {
 	this.addHandler("/error404", Error404Handler);
 };
 Application.prototype = Object.create(Object.prototype, {
+	debugging: { value: false, writable: true, },
 	filters: { value: {}, writable: true, },
 	handlerConstructors: { value: {}, writable: true, },
 	properties: { value: {}, writable: true, },
 	templateConstructors: { value: {}, writable: true, },
+	warning: { value: true, writable: true, },
 
 	addHandler: { value:
 		function(url, handler, filter) {
@@ -600,6 +596,18 @@ Application.prototype = Object.create(Object.prototype, {
 			this.templateConstructors[name] = template;
 		}
 	},
+	debug: { value:
+		function() {
+			if (this.debugging) {
+				console.log.apply(console, arguments);
+			}
+		}
+	},
+	error: { value:
+		function() {
+			console.log.apply(console, arguments);
+		}
+	},
 	findHandler: { value:
 		function(url, query) {
 			var filters = this.filters;
@@ -615,7 +623,7 @@ Application.prototype = Object.create(Object.prototype, {
 						constructor = this.handlerConstructors[url1];
 			}
 			if (!constructor) {
-				application.log("Handler not found '" + url + "'");
+				application.error("Handler not found '" + url + "'");
 				constructor = this.handlerConstructors['/error404'];
 			}
 
@@ -642,11 +650,6 @@ Application.prototype = Object.create(Object.prototype, {
 			else {
 				window.location = window.location.href + "#" + url;
 			}
-		}
-	},
-	log: { value:
-		function() {
-			console.log.apply(console, arguments);
 		}
 	},
 	parseQuery: { value:
@@ -697,7 +700,7 @@ Application.prototype = Object.create(Object.prototype, {
 					handler._target.innerHTML = body;
 				}
 			}
-			this.log(message);
+			this.error(message);
 		}, writable : true,
 	},
 	request: { value:
@@ -723,6 +726,13 @@ Application.prototype = Object.create(Object.prototype, {
 			response.end(html);
 		}
 	},
+	warn: { value:
+		function() {
+			if (this.warning) {
+				console.log.apply(console, arguments);
+			}
+		}
+	},
 });
 
 
@@ -744,7 +754,7 @@ Server.prototype = Object.create(Application.prototype, {
 			var query = {}, url = request.url, handler;
 
 			try	{
-				application.log("# " + url);
+				application.debug("# " + url);
 				if (request.method === 'POST') {
 					if (url.indexOf('?') > 0)
 						throw new Error("POST request should not have a query: " + url);
@@ -800,7 +810,7 @@ Server.prototype = Object.create(Application.prototype, {
 					message = error.stack.toString();
 				else
 					message = error.toString();
-				this.log(message);
+				this.error(message);
 				this.sendErrorToResponse(response, request.url, message);
 			}
 		}
@@ -814,7 +824,7 @@ Server.prototype = Object.create(Application.prototype, {
 				this.httpServer = http.createServer(function (request, response) {
 					server.httpRequest(request, response);
 				});
-				application.log('server listening on port: ' + this.properties.port);
+				application.debug('server listening on port: ' + this.properties.port);
 				this.httpServer.listen(this.properties.port);
 			}
 		}
@@ -822,7 +832,7 @@ Server.prototype = Object.create(Application.prototype, {
 	stop: { value:
 		function() {
 			if (!gHTTPServer && this.httpServer) {
-				application.log('stop listening on port: ' + this.properties.port);
+				application.debug('stop listening on port: ' + this.properties.port);
 				this.httpServer.close();
 			}
 			this.httpServer = undefined;
@@ -878,7 +888,7 @@ var Error404Handler = Handler.template({
 	status : "404",
 	Behavior: Behavior.template ({
 		on_render: function(handler, scope) {
-			application.log("404 Not found: " + handler.url);
+			application.error("404 Not found: " + handler.url);
 			if (handler._response) {
 				var html = '<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>Not Found</h1><p>The requested URL "';
 				html += handler.url + '" was not found on this server.</p></body></html>';
@@ -959,7 +969,7 @@ FileHandler.prototype = Object.create(Handler.prototype, {
 				extension = (path.substring(dot + 1)).toLowerCase();
 				if (this.mime.hasOwnProperty(extension))
 					return this.mime[extension];
-				application.log('# mime not found!' + path + '\n');
+				application.warn('# mime not found!' + path + '\n');
 			}
 			return '';
 		}
@@ -1001,7 +1011,7 @@ FileHandler.prototype = Object.create(Handler.prototype, {
 				if (match)
 					return new Date(Date.UTC(match[7], this._month[match[2]], match[3], match[4], match[5], match[6]));
 
-				application.log('# Date format was not recognize: ' + d + '\n');
+				application.warn('# Date format was not recognize: ' + d + '\n');
 			}
 			return new Date();
 		}
@@ -1021,7 +1031,7 @@ var MySQL = Object.create(Object.prototype, {
 				if (error.code !== 'PROTOCOL_CONNECTION_LOST') {
 					throw error;
 				}
-				application.log('Re-connecting lost connection: ' + error.stack);
+				application.warn('Re-connecting lost connection: ' + error.stack);
 
 				MySQL._connection = MySQL._mysql.createConnection(this._connection.config);
 				MySQL._onDisconnect();
@@ -1061,15 +1071,19 @@ var SQLHandler = function(parent, url, query) {
 };
 SQLHandler.template = templateHandler;
 SQLHandler.prototype = Object.create(Handler.prototype, {
+	doPrepare: { value:
+		function(data) {
+			if (!data || !('statement' in data)) {
+				throw new Error('SQLHandler "' + this.url + '" has no statement.');
+			}
+			if (!data.values) {
+				data.values = [];
+			}
+		}
+	},
 	doResult: { value:
 		function(result) {
 			return result;
-		}
-	},
-	doPrepare: { value:
-		function(data) {
-			if (!data || !('statement' in data))
-				throw new Error('SQLHandler "' + handler.url + '" has no statement.');
 		}
 	},
 	doRequest: { value:
@@ -1126,14 +1140,34 @@ SQLDeleteHandler.template = templateHandler;
 SQLDeleteHandler.prototype = Object.create(SQLHandler.prototype, {
 	doPrepare: { value:
 		function(data) {
+			var property = [], values = [], query = this.query;
 			if (!('table' in data)) {
-				throw new Error('SQLDeleteHandler "' + handler.url + '" has no table name.');
+				throw new Error('SQLDeleteHandler "' + this.url + '" has no table name.');
 			}
-			if (!('id' in this.query)) {
-				throw new Error('SQLDeleteHandler "' + handler.url + '" has no id.');
+			for (var i = 0; i < data.columns.length; i++) {
+				var column = data.columns[i];
+				if (query.hasOwnProperty(column)) {
+					property.push("`" + column + "` = ?");
+					values.push(query[column]);
+				}
 			}
-			data.statement = "DELETE FROM " + data.table + " WHERE id = ?";
-			data.values = [this.query.id];
+			if (property.length) {
+				data.statement = "DELETE FROM " + data.table + " WHERE " + property.join(" AND ");
+				data.values = values;
+				if (query.extra) {
+					data.statement += " " + query.extra;
+				}
+			}
+			else if (query.all) {
+				data.statement = "DELETE FROM " + data.table;
+				data.values = [];
+				if (query.extra) {
+					data.statement += " " + query.extra;
+				}
+			}
+			else {
+				throw new Error('SQLDeleteHandler "' + this.url + '" has where clause.');
+			}
 		}
 	},
 });
@@ -1161,21 +1195,24 @@ SQLInsertHandler.prototype = Object.create(SQLHandler.prototype, {
 			var property = [], items = [], values = [], query = this.query;
 
 			if (!('table' in data)) {
-				throw new Error('SQLInsertHandler "' + handler.url + '" has no table name.');
+				throw new Error('SQLInsertHandler "' + this.url + '" has no table name.');
 			}
 			if (!('columns' in data)) {
-				throw new Error('SQLInsertHandler "' + handler.url + '" has no columns.');
+				throw new Error('SQLInsertHandler "' + this.url + '" has no columns.');
 			}
 			for (var i = 0; i < data.columns.length; i++) {
 				var column = data.columns[i];
 				if (query.hasOwnProperty(column)) {
-					property.push(column);
+					property.push("`" + column + "`");
 					items.push('?');
 					values.push(query[column]);
 				}
 			}
 			data.statement = "INSERT INTO " + data.table + " (" + property.join(", ") + ") VALUES (" + items.join(", ") + ")";
 			data.values = values;
+			if (query.extra) {
+				data.statement += " " + query.extra;
+			}
 		}
 	},
 });
@@ -1190,15 +1227,15 @@ SQLSelectHandler.prototype = Object.create(SQLHandler.prototype, {
 			var property = [], values = [], query = this.query;
 
 			if (!('table' in data)) {
-				throw new Error('SQLSelectHandler "' + handler.url + '" has no table name.');
+				throw new Error('SQLSelectHandler "' + this.url + '" has no table name.');
 			}
 			if (!('columns' in data)) {
-				throw new Error('SQLSelectHandler "' + handler.url + '" has no columns.');
+				throw new Error('SQLSelectHandler "' + this.url + '" has no columns.');
 			}
 			for (var i = 0; i < data.columns.length; i++) {
 				var column = data.columns[i];
 				if (query.hasOwnProperty(column)) {
-					property.push(column + " = ?");
+					property.push("`" + column + "` = ?");
 					values.push(query[column]);
 				}
 			}
@@ -1208,6 +1245,9 @@ SQLSelectHandler.prototype = Object.create(SQLHandler.prototype, {
 			}
 			else {
 				data.statement = "SELECT * FROM " + data.table;
+			}
+			if (query.extra) {
+				data.statement += " " + query.extra;
 			}
 		}
 	},
@@ -1236,15 +1276,15 @@ SQLSelectCountHandler.prototype = Object.create(SQLCountHandler.prototype, {
 			var property = [], values = [], query = this.query;
 
 			if (!('table' in data)) {
-				throw new Error('SQLSelectHandler "' + handler.url + '" has no table name.');
+				throw new Error('SQLSelectHandler "' + this.url + '" has no table name.');
 			}
 			if (!('columns' in data)) {
-				throw new Error('SQLSelectHandler "' + handler.url + '" has no columns.');
+				throw new Error('SQLSelectHandler "' + this.url + '" has no columns.');
 			}
 			for (var i = 0; i < data.columns.length; i++) {
 				var column = data.columns[i];
 				if (query.hasOwnProperty(column)) {
-					property.push(column + " = ?");
+					property.push("`" + column + "` = ?");
 					values.push(query[column]);
 				}
 			}
@@ -1254,6 +1294,9 @@ SQLSelectCountHandler.prototype = Object.create(SQLCountHandler.prototype, {
 			}
 			else {
 				data.statement = "SELECT COUNT(*) FROM " + data.table;
+			}
+			if (query.extra) {
+				data.statement += " " + query.extra;
 			}
 		}
 	},
@@ -1269,24 +1312,27 @@ SQLUpdateHandler.prototype = Object.create(SQLHandler.prototype, {
 			var property = [], values = [], query = this.query;
 
 			if (!('table' in data)) {
-				throw new Error('SQLUpdateHandler "' + handler.url + '" has no table name.');
+				throw new Error('SQLUpdateHandler "' + this.url + '" has no table name.');
 			}
 			if (!('columns' in data)) {
-				throw new Error('SQLUpdateHandler "' + handler.url + '" has no columns.');
+				throw new Error('SQLUpdateHandler "' + this.url + '" has no columns.');
 			}
 			if (!('id' in query)) {
-				throw new Error('SQLUpdateHandler "' + handler.url + '" has no id.');
+				throw new Error('SQLUpdateHandler "' + this.url + '" has no id.');
 			}
 			for (var i = 0; i < data.columns.length; i++) {
 				var column = data.columns[i];
 				if (query.hasOwnProperty(column)) {
-					property.push(column + " = ?");
+					property.push("`" + column + "` = ?");
 					values.push(query[column]);
 				}
 			}
 			values.push(query.id);
 			data.statement = "UPDATE " + data.table + " SET " + property.join(", ") + " WHERE id = ?";
 			data.values = values;
+			if (query.extra) {
+				data.statement += " " + query.extra;
+			}
 		}
 	},
 });
@@ -1340,13 +1386,13 @@ application.addHandler("/db/tables", SQLHandler.template({
 application.addHandler("/tables", Handler.template({
 	Behavior: Behavior.template({
 		on_request: function(handler, model, query) {
-				this.tables = handler.request('/db/tables');
+				this.tables = handler.request('/db/tables', {root: query.root});
 			
 		},
 		"/db/tables": function(handler, model, query) {
 				var tables = this.tables.valueOf();
 				for (var i = 0; i < tables.length; i++) {
-					tables[i].columns = handler.request('/db/columns', {i: i, table: tables[i].name});
+					tables[i].columns = handler.request('/db/columns', {i: i, table: tables[i].name, root: query.root});
 				}
 			
 		},
@@ -1356,61 +1402,50 @@ application.addHandler("/tables", Handler.template({
 
 				var buffer = table.buffer = new StreamBuffers.WritableStreamBuffer();
 
-				buffer.write('\t<handler url="/db/' + table.name + '/count" Constructor="SQLSelectCountHandler">\n');
+				buffer.write('\t<script><![CDATA[\n');
+				buffer.write('\t\t' + query.root + '_' + table.name + ' =  {\n');
+				buffer.write('\t\t\ttable: "' + table.name + '",\n');
+				buffer.write('\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
+				buffer.write('\t\t};\n');
+				buffer.write('\t]'+']></script>\n\n');
+
+				buffer.write('\t<handler url="/'+ query.root+ '/' + table.name + '/count" Constructor="SQLSelectCountHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
-				buffer.write('\t\t\treturn {\n');
-				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
-				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t\treturn ' + query.root + '_' + table.name + ';\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				buffer.write('\t<handler url="/db/' + table.name + '/delete" Constructor="SQLDeleteHandler">\n');
+				buffer.write('\t<handler url="/'+ query.root+ '/' + table.name + '/delete" Constructor="SQLDeleteHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
-				buffer.write('\t\t\treturn {\n');
-				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
-				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t\treturn '+ query.root+ '_' + table.name + ';\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				buffer.write('\t<handler url="/db/' + table.name + '/first" Constructor="SQLSelectFirstHandler">\n');
+				buffer.write('\t<handler url="/'+ query.root+ '/' + table.name + '/first" Constructor="SQLSelectFirstHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
-				buffer.write('\t\t\treturn {\n');
-				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
-				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t\treturn '+ query.root+ '_' + table.name + ';\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				buffer.write('\t<handler url="/db/' + table.name + '/insert" Constructor="SQLInsertHandler">\n');
+				buffer.write('\t<handler url="/'+ query.root + '/' + table.name + '/insert" Constructor="SQLInsertHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
-				buffer.write('\t\t\treturn {\n');
-				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
-				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t\treturn '+ query.root + '_' + table.name + ';\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				buffer.write('\t<handler url="/db/' + table.name + '/select" Constructor="SQLSelectHandler">\n');
+				buffer.write('\t<handler url="/'+ query.root+ '/' + table.name + '/select" Constructor="SQLSelectHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
-				buffer.write('\t\t\treturn {\n');
-				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
-				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t\treturn '+ query.root + '_' + table.name + ';\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				buffer.write('\t<handler url="/db/' + table.name + '/update" Constructor="SQLUpdateHandler">\n');
+				buffer.write('\t<handler url="/'+ query.root+ '/' + table.name + '/update" Constructor="SQLUpdateHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
-				buffer.write('\t\t\treturn {\n');
-				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
-				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t\treturn '+ query.root+ '_' + table.name + ';\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				
+			
 		},
 		on_complete: function(handler, model, query) {
 				handler.result = this.tables.valueOf();
@@ -1430,8 +1465,9 @@ application.addHandler("/insert", Handler.template({
 application.addHandler("/main", Handler.template({
 	Behavior: Behavior.template({
 		on_request: function(handler, model, query) {
+				console.log(query)
 				MySQL.connect(query.host, query.user, query.database, query.password);
-				this.tables = handler.request('/tables');
+				this.tables = handler.request('/tables', {root: query.root});
 			
 		},
 		on_complete: function(handler, model, query) {
@@ -1485,6 +1521,13 @@ application.addHandler("/main", Handler.template({
 			else
 				error++;
 
+			if (argv.root)
+				query.root = argv.root;
+			else if (argv.r)
+				query.root = argv.r;
+			else
+				query.root = 'db';
+
 			if (argv.user)
 				query.user = argv.user;
 			else if (argv.u)
@@ -1509,6 +1552,7 @@ application.addHandler("/main", Handler.template({
 				console.log('-H, --hostname <value>    set db hostname, default to localhost');
 				console.log('-o, --output <value>      set output filename, default to database.xs');
 				console.log('-p, --password <value>    set db user password');
+				console.log('-r, --root <value>        set url root (default: db)');
 				console.log('-u, --user <value>        set db user name');
 				console.log('-v, --version             print wkSql\'s version');
 			}

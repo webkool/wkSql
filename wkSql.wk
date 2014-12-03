@@ -41,13 +41,13 @@
 
 		<handler url="/tables">
 			<on id="request"><![CDATA[
-				this.tables = handler.request('/db/tables');
+				this.tables = handler.request('/db/tables', {root: query.root});
 			]]></on>
 
 			<on id="/db/tables"><![CDATA[
 				var tables = this.tables.valueOf();
 				for (var i = 0; i < tables.length; i++) {
-					tables[i].columns = handler.request('/db/columns', {i: i, table: tables[i].name});
+					tables[i].columns = handler.request('/db/columns', {i: i, table: tables[i].name, root: query.root});
 				}
 			]]></on>
 
@@ -57,61 +57,50 @@
 
 				var buffer = table.buffer = new StreamBuffers.WritableStreamBuffer();
 
-				buffer.write('\t<handler url="/db/' + table.name + '/count" Constructor="SQLSelectCountHandler">\n');
+				buffer.write('\t<script><![CDATA[\n');
+				buffer.write('\t\t' + query.root + '_' + table.name + ' =  {\n');
+				buffer.write('\t\t\ttable: "' + table.name + '",\n');
+				buffer.write('\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
+				buffer.write('\t\t};\n');
+				buffer.write('\t]'+']></script>\n\n');
+
+				buffer.write('\t<handler url="/'+ query.root+ '/' + table.name + '/count" Constructor="SQLSelectCountHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
-				buffer.write('\t\t\treturn {\n');
-				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
-				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t\treturn ' + query.root + '_' + table.name + ';\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				buffer.write('\t<handler url="/db/' + table.name + '/delete" Constructor="SQLDeleteHandler">\n');
+				buffer.write('\t<handler url="/'+ query.root+ '/' + table.name + '/delete" Constructor="SQLDeleteHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
-				buffer.write('\t\t\treturn {\n');
-				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
-				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t\treturn '+ query.root+ '_' + table.name + ';\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				buffer.write('\t<handler url="/db/' + table.name + '/first" Constructor="SQLSelectFirstHandler">\n');
+				buffer.write('\t<handler url="/'+ query.root+ '/' + table.name + '/first" Constructor="SQLSelectFirstHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
-				buffer.write('\t\t\treturn {\n');
-				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
-				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t\treturn '+ query.root+ '_' + table.name + ';\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				buffer.write('\t<handler url="/db/' + table.name + '/insert" Constructor="SQLInsertHandler">\n');
+				buffer.write('\t<handler url="/'+ query.root + '/' + table.name + '/insert" Constructor="SQLInsertHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
-				buffer.write('\t\t\treturn {\n');
-				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
-				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t\treturn '+ query.root + '_' + table.name + ';\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				buffer.write('\t<handler url="/db/' + table.name + '/select" Constructor="SQLSelectHandler">\n');
+				buffer.write('\t<handler url="/'+ query.root+ '/' + table.name + '/select" Constructor="SQLSelectHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
-				buffer.write('\t\t\treturn {\n');
-				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
-				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t\treturn '+ query.root + '_' + table.name + ';\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				buffer.write('\t<handler url="/db/' + table.name + '/update" Constructor="SQLUpdateHandler">\n');
+				buffer.write('\t<handler url="/'+ query.root+ '/' + table.name + '/update" Constructor="SQLUpdateHandler">\n');
 				buffer.write('\t\t<on id="construct"><![CDATA[\n');
-				buffer.write('\t\t\treturn {\n');
-				buffer.write('\t\t\t\ttable: "' + table.name + '",\n');
-				buffer.write('\t\t\t\tcolumns: ["' + table.columns.join('","') + '"]\n');
-				buffer.write('\t\t\t};\n');
+				buffer.write('\t\t\treturn '+ query.root+ '_' + table.name + ';\n');
 				buffer.write('\t\t]'+']></on>\n');
 				buffer.write('\t</handler>\n\n');
 
-				]]></on>
+			]]></on>
 
 			<on id="complete"><![CDATA[
 				handler.result = this.tables.valueOf();
@@ -126,7 +115,7 @@
 		<handler url="/main">
 			<on id="request"><![CDATA[
 				MySQL.connect(query.host, query.user, query.database, query.password);
-				this.tables = handler.request('/tables');
+				this.tables = handler.request('/tables', {root: query.root});
 			]]></on>
 
 			<on id="complete"><![CDATA[
@@ -178,6 +167,13 @@
 			else
 				error++;
 
+			if (argv.root)
+				query.root = argv.root;
+			else if (argv.r)
+				query.root = argv.r;
+			else
+				query.root = 'db';
+
 			if (argv.user)
 				query.user = argv.user;
 			else if (argv.u)
@@ -202,6 +198,7 @@
 				console.log('-H, --hostname <value>    set db hostname, default to localhost');
 				console.log('-o, --output <value>      set output filename, default to database.xs');
 				console.log('-p, --password <value>    set db user password');
+				console.log('-r, --root <value>        set url root (default: db)');
 				console.log('-u, --user <value>        set db user name');
 				console.log('-v, --version             print wkSql\'s version');
 			}
